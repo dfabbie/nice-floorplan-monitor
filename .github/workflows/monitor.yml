@@ -1,0 +1,43 @@
+name: Nice floorplan monitor
+
+on:
+  schedule:
+    # Every 10 minutes. NOTE: GitHub frequently delays scheduled runs (can be
+    # 10-30+ min under load), and disables schedules after 60 days of repo inactivity.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {} # manual "Run workflow" button (use to test immediately)
+
+concurrency:
+  group: nice-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # lets the run commit state.json back when availability changes
+    env:
+      PLAN_NAME: Nice
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      NTFY_SERVER: ${{ secrets.NTFY_SERVER }} # optional; defaults to https://ntfy.sh
+      WS_AUTHKEY: ${{ secrets.WS_AUTHKEY }} # optional; falls back to the key baked into check.js
+      HORIZON_DAYS: "180" # how far ahead to scan for future move-in availability
+      STEP_DAYS: "14" # scan granularity; must be <= the API's availability window
+      STATE_FILE: state.json # remembers what we've alerted on, so we only notify on change
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node check.js
+      - name: Commit state when availability changes
+        run: |
+          if [ -n "$(git status --porcelain "$STATE_FILE")" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "$STATE_FILE"
+            git commit -m "state: $PLAN_NAME availability changed"
+            git push
+          else
+            echo "No availability change; nothing to commit."
+          fi

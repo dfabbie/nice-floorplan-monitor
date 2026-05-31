@@ -1,0 +1,12 @@
+{
+  "name": "nice-floorplan-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Notifies via ntfy when the 'Nice' floor plan at Provence at Valencia becomes available.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "node check.js"
+  }
+}
